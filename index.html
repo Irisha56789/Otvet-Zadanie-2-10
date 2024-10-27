@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список пользователей</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Список пользователей</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Имя</th>
+                <th>Email</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody id="userTableBody">
+            <!-- Пользователи будут добавлены сюда -->
+        </tbody>
+    </table>
+
+    <h2>Добавить нового пользователя</h2>
+    <form id="userForm">
+        <input type="text" id="userName" placeholder="Имя" required>
+        <input type="email" id="userEmail" placeholder="Email" required>
+        <button type="submit">Добавить</button>
+    </form>
+    
+    <div id="errorMessage" class="error"></div>
+
+    <script>
+        const userTableBody = document.getElementById('userTableBody');
+        const userForm = document.getElementById('userForm');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Функция для получения списка пользователей
+        async function fetchUsers() {
+            try {
+                const response = await fetch('http://localhost:3000/users');
+                if (!response.ok) throw new Error('Сервер вернул ошибку');
+                const users = await response.json();
+                userTableBody.innerHTML = ''; // Очистка таблицы перед добавлением
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td contenteditable="true" id="name-${user.id}">${user.name}</td>
+                        <td contenteditable="true" id="email-${user.id}">${user.email}</td>
+                        <td>
+                            <button onclick="updateUser(${user.id})">Редактировать</button>
+                            <button onclick="deleteUser(${user.id})">Удалить</button>
+                        </td>
+                    `;
+                    userTableBody.appendChild(row);
+                });
+            } catch (error) {
+                displayError(error);
+            }
+        }
+
+        // Функция для добавления нового пользователя
+        userForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const name = document.getElementById('userName').value;
+            const email = document.getElementById('userEmail').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email })
+                });
+                if (!response.ok) throw new Error('Ошибка при добавлении пользователя');
+                await fetchUsers(); // Обновление списка пользователей
+                userForm.reset(); // Сброс формы
+            } catch (error) {
+                displayError(error);
+            }
+        });
+
+        // Функция для обновления пользователя
+        async function updateUser(id) {
+            const name = document.getElementById(`name-${id}`).textContent;
+            const email = document.getElementById(`email-${id}`).textContent;
+
+            try {
+                const response = await fetch(`http://localhost:3000/users/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, email })
+                });
+                if (!response.ok) throw new Error('Ошибка при обновлении пользователя');
+                await fetchUsers(); // Обновление списка пользователей
+            } catch (error) {
+                displayError(error);
+            }
+        }
+
+        // Функция для удаления пользователя
+        async function deleteUser(id) {
+            if (confirm('Вы уверены, что хотите удалить этого пользователя?')) {
+                try {
+                    const response = await fetch(`http://localhost:3000/users/${id}`, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) throw new Error('Ошибка при удалении пользователя');
+                    await fetchUsers(); // Обновление списка пользователей
+                } catch (error) {
+                    displayError(error);
+                }
+            }
+        }
+
+        // Функция для отображения ошибок
+function displayError(error) {
+            errorMessage.textContent = error.message;
+            setTimeout(() => {
+                errorMessage.textContent = '';
+            }, 5000);
+        }
+
+        // Вызов функции для получения пользователей
+        fetchUsers();
+    </script>
+</body>
+</html>
